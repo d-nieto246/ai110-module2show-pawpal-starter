@@ -4,8 +4,7 @@
 
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+- A user should be able to perform many tasks: enter owner/pet name, select a pet species, add, edit, and remove a pet care task (such as walking, feeding, grooming, etc.), and make a schedule.
 
 **b. Design changes**
 
