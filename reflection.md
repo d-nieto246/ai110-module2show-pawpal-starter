@@ -4,12 +4,17 @@
 
 **a. Initial design**
 
-- A user should be able to perform many tasks: enter owner/pet name, select a pet species, add, edit, and remove a pet care task (such as walking, feeding, grooming, etc.), and make a schedule.
+- I designed the system around four main classes: `Owner`, `Pet`, `Task`, and `Schedule`;
+- `Owner` is responsible for storing the owner's name and managing the list of pets they care for.
+- `Pet` represents an individual animal, stores its basic information such as name and species, and manages that pet's care tasks.
+- `Task` represents a specific care activity, such as feeding, walking, or grooming, and stores the details needed to describe how often and how it should be done.
+- `Schedule` is responsible for organizing tasks into dated entries so the owner can view upcoming pet care activities in order.
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+- My design changed during implementation.
+- One important change was updating the scheduling model so each schedule entry stores both a specific pet and a specific task, instead of storing only a task. I made this change to avoid ambiguity when multiple pets can have similar tasks (for example, both pets having a "feeding" task), and to enforce accurate ownership relationships.
+- I also added validation rules so tasks cannot be assigned to multiple pets and schedules cannot include tasks that do not belong to the selected pet/owner. This made the system more reliable, easier to reason about, and less likely to break as more pets and tasks are added.
 
 ---
 
