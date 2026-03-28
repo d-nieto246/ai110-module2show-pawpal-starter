@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
+from itertools import combinations
 from typing import Any
 
 
@@ -35,6 +36,8 @@ class Task:
 
 	def mark_complete(self) -> None:
 		"""Mark this task as completed."""
+		if self.completed:
+			return
 		self.completed = True
 
 	def mark_incomplete(self) -> None:
@@ -76,8 +79,9 @@ class Pet:
 
 	def get_task_by_type(self, task_type: str) -> Task | None:
 		"""Find the first task matching the given type."""
+		target_type = task_type.lower()
 		for task in self.tasks:
-			if task.type.lower() == task_type.lower():
+			if task.type.lower() == target_type:
 				return task
 		return None
 
@@ -109,10 +113,7 @@ class Owner:
 
 	def get_all_tasks(self) -> list[Task]:
 		"""Return all tasks across this owner's pets."""
-		all_tasks = []
-		for pet in self.pets:
-			all_tasks.extend(pet.get_tasks())
-		return all_tasks
+		return [task for pet in self.pets for task in pet.get_tasks()]
 
 	def get_pending_tasks(self) -> list[Task]:
 		"""Return all incomplete tasks across this owner's pets."""
@@ -131,6 +132,59 @@ class Scheduler:
 	owner: Owner
 	entries: list[tuple[Pet, Task, datetime]] = field(default_factory=list)
 
+	def has_time_conflict(self, date_time: datetime) -> bool:
+		"""Check whether at least two scheduled entries share the same datetime.
+
+		This uses an early-exit scan so it stops as soon as the second match is found.
+		"""
+		matches = 0
+		for entry in self.entries:
+			if entry[2] != date_time:
+				continue
+			matches += 1
+			if matches >= 2:
+				return True
+		return False
+
+	def detect_time_conflicts(
+		self,
+	) -> list[
+		tuple[
+			tuple[Pet, Task, datetime],
+			tuple[Pet, Task, datetime],
+		]
+	]:
+		"""Return all pairs of entries that occur at the exact same datetime.
+
+		Entries are grouped by timestamp first, then pairwise combinations are generated
+		inside each timestamp group.
+		"""
+		entries_by_time: dict[datetime, list[tuple[Pet, Task, datetime]]] = {}
+		for entry in self.entries:
+			entries_by_time.setdefault(entry[2], []).append(entry)
+
+		conflicts: list[
+			tuple[
+				tuple[Pet, Task, datetime],
+				tuple[Pet, Task, datetime],
+			]
+		] = []
+		for same_time_entries in entries_by_time.values():
+			if len(same_time_entries) < 2:
+				continue
+			conflicts.extend(combinations(same_time_entries, 2))
+
+		return conflicts
+
+	def sort_by_time(
+		self,
+		entries: list[tuple[Pet, Task, datetime]] | None = None,
+	) -> list[tuple[Pet, Task, datetime]]:
+		"""Return entries ordered by datetime. Defaults to all scheduler entries."""
+		if entries is None:
+			entries = self.entries
+		return sorted(entries, key=lambda entry: entry[2])
+
 	def add_entry(self, pet: Pet, task: Task, date_time: datetime) -> tuple[Pet, Task, datetime]:
 		"""Add a scheduled task entry for a pet at a specific time."""
 		if pet not in self.owner.pets:
@@ -144,15 +198,77 @@ class Scheduler:
 		self.entries.append(entry)
 		return entry
 
+	def get_conflict_warning(self, pet: Pet, date_time: datetime) -> str | None:
+		"""Build a human-readable warning when a new entry would overlap in time.
+
+		Returns None when no overlap exists, allowing callers to keep scheduling logic
+		non-blocking while still surfacing conflicts.
+		"""
+		overlapping_entries = [entry for entry in self.entries if entry[2] == date_time]
+		if not overlapping_entries:
+			return None
+
+		overlap_summaries = [f"{entry[0].name}:{entry[1].type}" for entry in overlapping_entries]
+		formatted_time = date_time.strftime("%Y-%m-%d %H:%M")
+		return (
+			f"Scheduling warning: {pet.name} has an overlap at {formatted_time}. "
+			f"Existing tasks at this time: {', '.join(overlap_summaries)}"
+		)
+
+	def add_entry_with_warning(
+		self,
+		pet: Pet,
+		task: Task,
+		date_time: datetime,
+	) -> tuple[tuple[Pet, Task, datetime], str | None]:
+		"""Schedule an entry and return an optional conflict warning.
+
+		Unlike hard validation, this method never rejects overlaps. It is intended for a
+		lightweight UX where conflicts are reported as warnings instead of exceptions.
+		"""
+		warning = self.get_conflict_warning(pet, date_time)
+		entry = self.add_entry(pet, task, date_time)
+		return entry, warning
+
 	def remove_entry(self, entry: tuple[Pet, Task, datetime]) -> None:
 		"""Remove an existing scheduled entry."""
 		if entry not in self.entries:
 			raise ValueError("Scheduler entry does not exist")
 		self.entries.remove(entry)
 
+	def mark_task_complete(self, entry: tuple[Pet, Task, datetime]) -> tuple[Pet, Task, datetime] | None:
+		"""Complete a scheduled task and auto-create the next recurring occurrence.
+
+		For daily tasks, the next entry is scheduled at +1 day; for weekly tasks, +1 week.
+		Non-recurring tasks are simply marked complete and return None.
+		"""
+		if entry not in self.entries:
+			raise ValueError("Scheduler entry does not exist")
+
+		pet, task, scheduled_time = entry
+		task.mark_complete()
+
+		frequency = task.frequency.strip().lower()
+		if frequency == "daily":
+			next_scheduled_time = scheduled_time + timedelta(days=1)
+		elif frequency == "weekly":
+			next_scheduled_time = scheduled_time + timedelta(weeks=1)
+		else:
+			return None
+
+		next_task = Task(
+			type=task.type,
+			description=task.description,
+			frequency=task.frequency,
+		)
+		pet.add_task(next_task)
+		next_entry = (pet, next_task, next_scheduled_time)
+		self.entries.append(next_entry)
+		return next_entry
+
 	def view_scheduler(self) -> list[tuple[Pet, Task, datetime]]:
 		"""Return all scheduler entries ordered by time."""
-		return sorted(self.entries, key=lambda entry: entry[2])
+		return self.sort_by_time()
 
 	def get_all_tasks(self) -> list[Task]:
 		"""Return all tasks available through this scheduler."""
@@ -161,6 +277,24 @@ class Scheduler:
 	def get_pending_tasks(self) -> list[Task]:
 		"""Return all incomplete tasks available through this scheduler."""
 		return self.owner.get_pending_tasks()
+
+	def filter_tasks(self, completed: bool | None = None, pet_name: str | None = None) -> list[Task]:
+		"""Return tasks filtered by optional completion status and pet name.
+
+		If neither filter is provided, all tasks across all pets are returned.
+		"""
+		normalized_pet_name = pet_name.lower() if pet_name is not None else None
+		matching_pets = [
+			pet
+			for pet in self.owner.pets
+			if normalized_pet_name is None or pet.name.lower() == normalized_pet_name
+		]
+		return [
+			task
+			for pet in matching_pets
+			for task in pet.tasks
+			if completed is None or task.completed is completed
+		]
 
 	def get_tasks_for_pet(self, pet: Pet) -> list[Task]:
 		"""Return all tasks for the specified pet."""
@@ -179,11 +313,11 @@ class Scheduler:
 		if pet not in self.owner.pets:
 			raise ValueError("Pet does not belong to this scheduler's owner")
 		pet_entries = [entry for entry in self.entries if entry[0] is pet]
-		return sorted(pet_entries, key=lambda entry: entry[2])
+		return self.sort_by_time(pet_entries)
 
 	def get_upcoming_entries(self, from_date: datetime | None = None) -> list[tuple[Pet, Task, datetime]]:
 		"""Return scheduled entries from the given date onward."""
 		if from_date is None:
 			from_date = datetime.now()
 		upcoming = [entry for entry in self.entries if entry[2] >= from_date]
-		return sorted(upcoming, key=lambda entry: entry[2])
+		return self.sort_by_time(upcoming)

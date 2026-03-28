@@ -4,11 +4,11 @@
 
 **a. Initial design**
 
-- I designed the system around four main classes: `Owner`, `Pet`, `Task`, and `Schedule`;
-- `Owner` is responsible for storing the owner's name and managing the list of pets they care for.
-- `Pet` represents an individual animal, stores its basic information such as name and species, and manages that pet's care tasks.
-- `Task` represents a specific care activity, such as feeding, walking, or grooming, and stores the details needed to describe how often and how it should be done.
-- `Schedule` is responsible for organizing tasks into dated entries so the owner can view upcoming pet care activities in order.
+- I designed the system around four main classes: Owner, Pet, Task, and Scheduler;
+- Owner is responsible for storing the owner's name and managing the list of pets they care for.
+- Pet represents an individual animal, stores its basic information such as name and species, and manages that pet's care tasks.
+- Task represents a specific care activity, such as feeding, walking, or grooming, and stores the details needed to describe how often and how it should be done.
+- Scheduler is responsible for organizing tasks into dated entries so the owner can view upcoming pet care activities in order.
 
 **b. Design changes**
 
@@ -27,8 +27,8 @@
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+- One tradeoff my scheduler makes is prioritizing simple, readable algorithms (straightforward filtering, and built-in sorting) over more complex data structures like indexed lookup tables or heaps. For example, conflict checks and task filtering are done by scanning current entries/tasks rather than maintaining extra caches.
+- This is reasonable for this scenario because PawPal+ is a small, user-facing planning app with relatively low data volume per owner. The simpler approach is easier to debug, test, and extend, and the runtime cost is still fast enough for typical usage while reducing implementation risk.
 
 ---
 

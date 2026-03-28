@@ -22,6 +22,15 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Smarter Scheduling
+
+Recent scheduler improvements include:
+
+- Automatic time ordering for schedule entries, even when tasks are added out of order.
+- Task filtering by completion status and by pet name.
+- Lightweight conflict detection that returns warnings for overlapping times instead of crashing.
+- Recurring task rollover: completing daily or weekly tasks can auto-create the next occurrence using timedeltas.
+
 ## Getting started
 
 ### Setup
