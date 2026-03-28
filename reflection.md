@@ -22,8 +22,11 @@
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+- My scheduler primarily considers time and ownership consistency.
+- Time is used for ordering entries chronologically and for identifying overlaps when two tasks are scheduled at the same datetime.
+- Ownership consistency is enforced so a task must belong to the selected pet, and that pet must belong to the active owner before the task can be scheduled.
+- I also considered completion state and frequency. Completion state supports filtering views (pending vs completed), and frequency supports recurrence behavior for daily and weekly tasks.
+- I decided these constraints mattered most because they directly affect correctness for a real pet owner: tasks must be attached to the right pet, shown in the right order, and repeated reliably when recurring care is needed.
 
 **b. Tradeoffs**
 
@@ -50,13 +53,15 @@
 
 **a. What you tested**
 
-- What behaviors did you test?
-- Why were these tests important?
+- I tested core behaviors including task completion state changes, adding tasks to pets, chronological ordering of schedule entries, recurrence logic for daily tasks, and conflict detection for duplicate times.
+- I also tested non-recurring completion behavior (no follow-up task created), warning behavior for overlap scheduling, and empty-task edge behavior for pets with no tasks.
+- These tests were important because they cover both happy paths and high-risk edge cases. The happy-path tests confirm normal user flows work end to end, while edge-case tests reduce the chance of silent failures when data is missing or when users schedule overlapping events.
 
 **b. Confidence**
 
-- How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+- I am confident at about 4 out of 5 stars based on passing 11 tests and manually checking the Streamlit workflow.
+- If I had more time, I would add tests for multiple simultaneous conflicts at the same timestamp (more than two entries), recurrence behavior across month/year boundaries, and validation around editing tasks after they are already scheduled.
+- I would also add integration-style tests for the UI flow to verify that conflict warnings, filtering controls, and one-based display numbering remain correct after future refactors.
 
 ---
 
@@ -64,12 +69,13 @@
 
 **a. What went well**
 
-- What part of this project are you most satisfied with?
+- I am most satisfied with how the class responsibilities stayed clear while the system grew. Owner, Pet, Task, and Scheduler each kept a focused role, which made it easier to add features like conflict warnings and recurrence without rewriting everything.
 
 **b. What you would improve**
 
-- If you had another iteration, what would you improve or redesign?
+- In another iteration, I would introduce a dedicated ScheduleEntry data class instead of tuple-based entries to improve readability and reduce indexing mistakes.
+- I would also add explicit task priority and duration fields, then build a smarter planner that can suggest time slots automatically instead of relying only on user-entered schedule times.
 
 **c. Key takeaway**
 
-- What is one important thing you learned about designing systems or working with AI on this project?
+- A key takeaway is that AI is most useful when I treat it as a collaborator, not an autopilot. The best results came from asking targeted questions, verifying suggestions with tests, and iterating on design decisions based on actual behavior.
