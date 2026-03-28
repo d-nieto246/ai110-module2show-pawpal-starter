@@ -50,3 +50,13 @@ pip install -r requirements.txt
 5. Add tests to verify key behaviors.
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
+
+## Testing PawPal+
+
+Run the automated tests with:
+
+```bash
+python -m pytest
+```
+
+The test suite covers core scheduling behavior, including chronological sorting of scheduled entries, recurring task rollover for daily tasks, and duplicate-time conflict detection. It also checks related behavior such as non-recurring completion, conflict warnings, and task state updates. My Condifence Level is around 4 out of 5 stars based on reliability and passing my 11 test cases.

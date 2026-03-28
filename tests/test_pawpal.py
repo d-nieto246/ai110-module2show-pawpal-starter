@@ -152,3 +152,60 @@ def test_add_entry_with_warning_returns_none_when_no_conflict() -> None:
 
     assert added_entry in scheduler.entries
     assert warning is None
+
+
+def test_view_scheduler_returns_entries_in_chronological_order() -> None:
+    owner = Owner(name="Jordan")
+    luna = Pet(name="Luna", species="Dog")
+    owner.add_pet(luna)
+    scheduler = Scheduler(owner=owner)
+
+    walk = Task(type="Walking", description="Morning walk", frequency="Daily")
+    feed = Task(type="Feeding", description="Breakfast", frequency="Daily")
+    meds = Task(type="Medication", description="Evening medicine", frequency="Daily")
+    luna.add_task(walk)
+    luna.add_task(feed)
+    luna.add_task(meds)
+
+    t1 = datetime(2026, 3, 28, 8, 0)
+    t2 = datetime(2026, 3, 28, 12, 0)
+    t3 = datetime(2026, 3, 28, 18, 0)
+
+    scheduler.add_entry(luna, meds, t3)
+    scheduler.add_entry(luna, walk, t1)
+    scheduler.add_entry(luna, feed, t2)
+
+    scheduled_times = [entry[2] for entry in scheduler.view_scheduler()]
+
+    assert scheduled_times == [t1, t2, t3]
+
+
+def test_has_time_conflict_flags_duplicate_times() -> None:
+    owner = Owner(name="Jordan")
+    luna = Pet(name="Luna", species="Dog")
+    owner.add_pet(luna)
+    scheduler = Scheduler(owner=owner)
+
+    walk = Task(type="Walking", description="Morning walk", frequency="Daily")
+    feed = Task(type="Feeding", description="Breakfast", frequency="Daily")
+    luna.add_task(walk)
+    luna.add_task(feed)
+
+    same_time = datetime(2026, 3, 29, 9, 0)
+    scheduler.add_entry(luna, walk, same_time)
+    assert scheduler.has_time_conflict(same_time) is False
+
+    scheduler.add_entry(luna, feed, same_time)
+    assert scheduler.has_time_conflict(same_time) is True
+
+
+def test_pet_with_no_tasks_returns_empty_lists() -> None:
+    owner = Owner(name="Jordan")
+    luna = Pet(name="Luna", species="Dog")
+    owner.add_pet(luna)
+    scheduler = Scheduler(owner=owner)
+
+    assert luna.get_tasks() == []
+    assert luna.get_pending_tasks() == []
+    assert scheduler.get_tasks_for_pet(luna) == []
+    assert scheduler.get_pending_tasks_for_pet(luna) == []
