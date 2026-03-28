@@ -31,6 +31,16 @@ Recent scheduler improvements include:
 - Lightweight conflict detection that returns warnings for overlapping times instead of crashing.
 - Recurring task rollover: completing daily or weekly tasks can auto-create the next occurrence using timedeltas.
 
+## Features
+
+- Chronological sorting algorithm: schedule entries are ordered by datetime, even if added out of order.
+- Conflict-pair detection: overlapping entries are grouped by timestamp and expanded into pairwise conflicts.
+- Non-blocking conflict warnings: overlapping times return human-readable warnings while still allowing scheduling.
+- Recurrence rollover logic: completing a daily or weekly task auto-generates the next occurrence using timedeltas.
+- Task filtering pipeline: tasks can be filtered by completion status and pet name (case-insensitive matching for pet names).
+- Relationship integrity checks: scheduling validates owner-pet-task consistency to prevent invalid cross-pet assignments.
+- Upcoming schedule extraction: future-facing entries can be retrieved from a provided date onward, then sorted.
+
 ## Getting started
 
 ### Setup
@@ -60,3 +70,8 @@ python -m pytest
 ```
 
 The test suite covers core scheduling behavior, including chronological sorting of scheduled entries, recurring task rollover for daily tasks, and duplicate-time conflict detection. It also checks related behavior such as non-recurring completion, conflict warnings, and task state updates. My Condifence Level is around 4 out of 5 stars based on reliability and passing my 11 test cases.
+
+### Demo
+![Screenshot 1](<PawPal #1.png>)
+![Screenshot 2](<PawPal #2.png>)
+![Screenshot 3](<PawPal #3.png>)

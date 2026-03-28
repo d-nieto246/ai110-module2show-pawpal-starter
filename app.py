@@ -78,14 +78,26 @@ if add_pet_submitted:
 pets = st.session_state["owner"].get_pets()
 if pets:
     st.write("Current pets:")
-    st.table([{"name": pet.name, "species": pet.species, "tasks": len(pet.get_tasks())} for pet in pets])
+    st.dataframe(
+        [
+            {
+                "Pet #": index,
+                "Name": pet.name,
+                "Species": pet.species,
+                "Tasks": len(pet.get_tasks()),
+            }
+            for index, pet in enumerate(pets, start=1)
+        ],
+        hide_index=True,
+        use_container_width=True,
+    )
 else:
     st.info("No pets yet. Add one above.")
 
 st.divider()
 
 st.subheader("Schedule a Task")
-st.caption("Submitting this form calls Pet.add_task(...) and Scheduler.add_entry(...).")
+st.caption("Submitting this form calls Pet.add_task(...) and Scheduler.add_entry_with_warning(...).")
 
 if pets:
     pet_options = {f"{pet.name} ({pet.species})": pet for pet in pets}
@@ -108,17 +120,38 @@ if pets:
             task = Task(type=clean_type, description=clean_description, frequency=task_frequency)
             selected_pet.add_task(task)
             scheduled_at = datetime.combine(task_date, task_time)
-            st.session_state["scheduler"].add_entry(selected_pet, task, scheduled_at)
-            st.success(
-                f"Scheduled {task.type} for {selected_pet.name} at {scheduled_at.strftime('%Y-%m-%d %I:%M %p')}."
+            added_entry, warning = st.session_state["scheduler"].add_entry_with_warning(
+                selected_pet,
+                task,
+                scheduled_at,
             )
+            st.success(
+                f"Scheduled {added_entry[1].type} for {added_entry[0].name} at {added_entry[2].strftime('%Y-%m-%d %I:%M %p')}."
+            )
+            if warning:
+                st.warning(warning)
 
     entries = st.session_state["scheduler"].view_scheduler()
     if entries:
-        st.write("Current schedule:")
-        st.table(
+        scheduler = st.session_state["scheduler"]
+        all_tasks = scheduler.get_all_tasks()
+        pending_tasks = scheduler.get_pending_tasks()
+        conflicts = scheduler.detect_time_conflicts()
+
+        st.markdown("#### Schedule Dashboard")
+        metric_col_1, metric_col_2, metric_col_3 = st.columns(3)
+        metric_col_1.success(f"Scheduled entries: {len(entries)}")
+        metric_col_2.info(f"Pending tasks: {len(pending_tasks)} / {len(all_tasks)}")
+        if conflicts:
+            metric_col_3.warning(f"Conflicts: {len(conflicts)}")
+        else:
+            metric_col_3.success("Conflicts: 0")
+
+        st.markdown("#### Current schedule (sorted)")
+        st.dataframe(
             [
                 {
+                    "Task #": index,
                     "date": entry[2].strftime("%Y-%m-%d"),
                     "time": entry[2].strftime("%I:%M %p"),
                     "pet": entry[0].name,
@@ -127,9 +160,71 @@ if pets:
                     "description": entry[1].description,
                     "frequency": entry[1].frequency,
                 }
-                for entry in entries
-            ]
+                for index, entry in enumerate(entries, start=1)
+            ],
+            hide_index=True,
+            use_container_width=True,
         )
+
+        st.markdown("#### Filtered task view")
+        filter_col_1, filter_col_2 = st.columns(2)
+        pet_filter_options = ["All pets"] + [pet.name for pet in pets]
+        selected_pet_filter = filter_col_1.selectbox(
+            "Filter by pet",
+            pet_filter_options,
+            key="filter_by_pet",
+        )
+        selected_status_filter = filter_col_2.selectbox(
+            "Filter by status",
+            ["All", "Pending", "Completed"],
+            key="filter_by_status",
+        )
+
+        completed_filter = None
+        if selected_status_filter == "Pending":
+            completed_filter = False
+        elif selected_status_filter == "Completed":
+            completed_filter = True
+
+        pet_name_filter = None if selected_pet_filter == "All pets" else selected_pet_filter
+        filtered_tasks = scheduler.filter_tasks(completed=completed_filter, pet_name=pet_name_filter)
+
+        if filtered_tasks:
+            st.dataframe(
+                [
+                    {
+                        "Task #": index,
+                        "pet": task.pet.name if task.pet is not None else "Unknown",
+                        "task": task.type,
+                        "description": task.description,
+                        "frequency": task.frequency,
+                        "status": "Completed" if task.completed else "Pending",
+                    }
+                    for index, task in enumerate(filtered_tasks, start=1)
+                ],
+                hide_index=True,
+                use_container_width=True,
+            )
+        else:
+            st.info("No tasks match your current filters.")
+
+        if conflicts:
+            st.warning(
+                f"{len(conflicts)} scheduling conflict(s) found. Consider shifting one task by 15-30 minutes to reduce stress for you and your pet."
+            )
+            with st.expander("View conflict details"):
+                st.table(
+                    [
+                        {
+                            "time": conflict[0][2].strftime("%Y-%m-%d %I:%M %p"),
+                            "entry_1": f"{conflict[0][0].name} - {conflict[0][1].type}",
+                            "entry_2": f"{conflict[1][0].name} - {conflict[1][1].type}",
+                        }
+                        for conflict in sorted(conflicts, key=lambda pair: pair[0][2])
+                    ]
+                )
+        else:
+            st.success("No overlapping schedule times detected. Great job spacing tasks out.")
     else:
         st.info("No scheduled tasks yet.")
 else:
